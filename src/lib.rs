@@ -24,13 +24,22 @@ extern "C" {
     fn boolector_false(s: *mut c_void) -> *mut c_void;
     fn boolector_const(s: *mut c_void, c: *mut c_char) -> *mut c_void;
     fn boolector_is_const(s: *mut c_void, term: *mut c_void) -> bool;
+
     fn boolector_not(s: *mut c_void, x: *mut c_void) -> *mut c_void;
+    fn boolector_redand(s: *mut c_void, x: *mut c_void) -> *mut c_void;
+    fn boolector_redor(s: *mut c_void, x: *mut c_void) -> *mut c_void;
+    fn boolector_redxor(s: *mut c_void, x: *mut c_void) -> *mut c_void;
 
     fn boolector_eq(s: *mut c_void, x: *mut c_void, y: *mut c_void) -> *mut c_void;
     fn boolector_ne(s: *mut c_void, x: *mut c_void, y: *mut c_void) -> *mut c_void;
     fn boolector_and(s: *mut c_void, x: *mut c_void, y: *mut c_void) -> *mut c_void;
+    fn boolector_or(s: *mut c_void, x: *mut c_void, y: *mut c_void) -> *mut c_void;
     fn boolector_add(s: *mut c_void, x: *mut c_void, y: *mut c_void) -> *mut c_void;
+    fn boolector_sub(s: *mut c_void, x: *mut c_void, y: *mut c_void) -> *mut c_void;
+    fn boolector_ugt(s: *mut c_void, x: *mut c_void, y: *mut c_void) -> *mut c_void;
     fn boolector_ult(s: *mut c_void, x: *mut c_void, y: *mut c_void) -> *mut c_void;
+    fn boolector_sll(s: *mut c_void, x: *mut c_void, y: *mut c_void) -> *mut c_void;
+    fn boolector_concat(s: *mut c_void, x: *mut c_void, y: *mut c_void) -> *mut c_void;
 
     fn boolector_cond(
         s: *mut c_void,
@@ -41,6 +50,8 @@ extern "C" {
 
     fn boolector_uext(s: *mut c_void, x: *mut c_void, width: u32) -> *mut c_void;
     fn boolector_sext(s: *mut c_void, x: *mut c_void, width: u32) -> *mut c_void;
+
+    fn boolector_slice(s: *mut c_void, x: *mut c_void, upper: u32, lower: u32) -> *mut c_void;
 
     fn boolector_assert(s: *mut c_void, term: *mut c_void);
     fn boolector_sat(s: *mut c_void) -> u32;
@@ -63,7 +74,7 @@ impl Boolector {
         Self { solver }
     }
 
-    pub fn new_var(&mut self, sort: Sort, id: u32) -> BtorTerm {
+    pub fn new_var(&self, sort: Sort, id: u32) -> BtorTerm {
         let len = match sort {
             Sort::BV(len) => len,
             Sort::Bool => 1,
@@ -78,7 +89,7 @@ impl Boolector {
         }
     }
 
-    pub fn bool_const(&mut self, v: bool) -> BtorTerm {
+    pub fn bool_const(&self, v: bool) -> BtorTerm {
         let term = if v {
             unsafe { boolector_true(self.solver) }
         } else {
@@ -90,7 +101,7 @@ impl Boolector {
         }
     }
 
-    pub fn bv_const(&mut self, c: &[bool]) -> BtorTerm {
+    pub fn bv_const(&self, c: &[bool]) -> BtorTerm {
         let mut cs = String::new();
         for i in c.iter().rev() {
             cs.push(if *i { '1' } else { '0' })
@@ -136,7 +147,7 @@ impl Boolector {
 }
 
 impl Boolector {
-    fn new_bv_sort(&mut self, width: u32) -> BtorSort {
+    fn new_bv_sort(&self, width: u32) -> BtorSort {
         BtorSort {
             solver: self.solver,
             sort: unsafe { boolector_bitvec_sort(self.solver, width) },
@@ -253,6 +264,9 @@ impl BtorTerm {
             UniOpType::Inc => todo!(),
             UniOpType::Dec => todo!(),
             UniOpType::Neg => todo!(),
+            UniOpType::Redand => boolector_redand,
+            UniOpType::Redor => boolector_redor,
+            UniOpType::Redxor => boolector_redxor,
         };
         let term = unsafe { op(self.solver, self.term) };
         Self {
@@ -268,7 +282,7 @@ impl BtorTerm {
             BiOpType::Eq => boolector_eq,
             BiOpType::Neq => boolector_ne,
             BiOpType::Sgt => todo!(),
-            BiOpType::Ugt => todo!(),
+            BiOpType::Ugt => boolector_ugt,
             BiOpType::Sgte => todo!(),
             BiOpType::Ugte => todo!(),
             BiOpType::Slt => todo!(),
@@ -278,12 +292,12 @@ impl BtorTerm {
             BiOpType::And => boolector_and,
             BiOpType::Nand => todo!(),
             BiOpType::Nor => todo!(),
-            BiOpType::Or => todo!(),
+            BiOpType::Or => boolector_or,
             BiOpType::Xnor => todo!(),
             BiOpType::Xor => todo!(),
             BiOpType::Rol => todo!(),
             BiOpType::Ror => todo!(),
-            BiOpType::Sll => todo!(),
+            BiOpType::Sll => boolector_sll,
             BiOpType::Sra => todo!(),
             BiOpType::Srl => todo!(),
             BiOpType::Add => boolector_add,
@@ -293,7 +307,7 @@ impl BtorTerm {
             BiOpType::Smod => todo!(),
             BiOpType::Srem => todo!(),
             BiOpType::Urem => todo!(),
-            BiOpType::Sub => todo!(),
+            BiOpType::Sub => boolector_sub,
             BiOpType::Saddo => todo!(),
             BiOpType::Uaddo => todo!(),
             BiOpType::Sdivo => todo!(),
@@ -302,7 +316,7 @@ impl BtorTerm {
             BiOpType::Umulo => todo!(),
             BiOpType::Ssubo => todo!(),
             BiOpType::Usubo => todo!(),
-            BiOpType::Concat => todo!(),
+            BiOpType::Concat => boolector_concat,
             BiOpType::Read => todo!(),
         };
         let term = unsafe { op(self.solver, self.term, other.term) };
@@ -347,6 +361,15 @@ impl BtorTerm {
             ExtOpType::Uext => boolector_uext,
         };
         let term = unsafe { op(self.solver, self.term, length) };
+        Self {
+            solver: self.solver,
+            term,
+        }
+    }
+
+    #[inline]
+    pub fn slice(&self, upper: u32, lower: u32) -> Self {
+        let term = unsafe { boolector_slice(self.solver, self.term, upper, lower) };
         Self {
             solver: self.solver,
             term,
